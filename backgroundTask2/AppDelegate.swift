@@ -4,8 +4,11 @@
 //
 //  Created by arshad on 5/7/22.
 //
+///App downloads content from the network
+//App processes data in the background
 
 import UIKit
+import BackgroundTasks
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -14,7 +17,50 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        BGTaskScheduler.shared.register(forTaskWithIdentifier:"App processes data in the background" , using: nil) { bgtask in
+            self.handlerTask(bgtask as! BGAppRefreshTask)
+        }
         return true
+    }
+
+    
+    func handlerTask(_ task:BGAppRefreshTask){
+        task.expirationHandler = {
+            print("worked finished")
+        }
+        
+        let randanNumber = (1...80).randomElement() ?? 1
+        callapi(inde: randanNumber)
+    }
+    
+    func callapi(inde:Int){
+        
+        let urlData = "https://jsonplaceholder.typicode.com/posts/\(inde)"
+        NetworkManagerService.shared.PaserAnyData(HttpUrlName: urlData, method:"GET",EncodeData: nil, models.self) { data in
+            switch data{
+            case .success(let responce):
+                let finalData = ["userData":responce]
+                NotificationCenter.default.post(name: .postData, object: nil, userInfo:finalData )
+            case .failure(let fai):
+                if fai is APIError{
+                    print(fai)
+                }
+            }
+        }
+    }
+    
+    
+    
+    func handlerbackgrpundtaask(){
+
+        let backgroundRequest = BGAppRefreshTaskRequest(identifier: "App processes data in the background")
+        backgroundRequest.earliestBeginDate = Date(timeIntervalSinceNow: 10)
+        do {
+            try BGTaskScheduler.shared.submit(backgroundRequest)
+        } catch  {
+            print(error.localizedDescription)
+        }
     }
 
     // MARK: UISceneSession Lifecycle
@@ -34,3 +80,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 }
 
+
+extension Notification.Name{
+    static let postData =  Notification.Name("postData")
+}
